@@ -22,6 +22,8 @@ jobs:
             archive: zip
     steps:
       - uses: actions/checkout@master
+      - name: setver
+        run: sed -i 'a/0.5.0/${{ GITHUB_REF_NAME }}g' src/main.rs
       - name: Compile and release
         uses: rust-build/rust-build.action@latest
         env:

@@ -22,7 +22,7 @@ export GITEE_SESSION="QjlHSTdMUWJEWE1KMWkvY1.....0712"
 
 powershell
 ```powershell
-$env:GITEE_SESSION = "QjlHSTdMUWJEWE1KMWkvY1.....0712"
+$env:GITEE_SESSION="QjlHSTdMUWJEWE1KMWkvY1.....0712"
 ```
 
 *QjlHSTdMUWJEWE1KMWkvY1.....0712*替换成第一步获取到的gitee-session-n的值
