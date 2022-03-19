@@ -1,10 +1,7 @@
 name: Rust
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,7 +13,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: tar source
+      run: tar -cvf source.tar.gz ./
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --release --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          source.tar.gz
+          target/release/rusgit
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
