@@ -55,9 +55,14 @@ async fn clone(remote: &str) {
         Ok(uri)=> uri,
         Err(error) => panic!("get gitee url error: {:?}", error)
     };
-    print!("gitee_repo_url: {}", gitee_repo_url)
-    // Command::new("git").arg("clone").arg("test").output();
+
+    print!("found mirror repo: {}\n", &gitee_repo_url);
+    let git_status = Command::new("git").arg("clone").arg(gitee_repo_url).status();
+    if git_status.is_err() {
+        print!("run git error: {}", git_status.err().unwrap())
+    }
 }
+
 
 
 #[derive(Debug)]
@@ -65,6 +70,7 @@ enum GetGiteeError {
     InvalidLogin,
     InvalidToken,
     CanNotFoundRepo,
+    ParseResponseError,
 }
 
 async fn get_url_from_gitee(remote: &str) -> Result<String, GetGiteeError> {
@@ -122,7 +128,8 @@ async fn get_url_from_gitee(remote: &str) -> Result<String, GetGiteeError> {
     }
 
     if start_pos == None || end_pos == None {
-        print!("gitee res: {} start: {:?}, end: {:?}", dup_response.message, start_pos, end_pos);
+        dbg!("gitee res: {} start: {:?}, end: {:?}", dup_response.message, start_pos, end_pos);
+        return Err(GetGiteeError::ParseResponseError);
     }
 
     let dup_repo_url = dup_response.message[start_pos.unwrap()+6..end_pos.unwrap()].to_string();
