@@ -30,11 +30,13 @@ enum Commands {
 async  fn main() {
     let args = Cli::parse();
     
-
-
     match &args.command {
         Commands::Clone { remote } => {
-            clone(remote).await
+            let res = clone(remote).await;
+            match res {
+                Ok(_) => (),
+                Err(err) => print!("{}", err.msg)
+            }
         }
     }
 
@@ -45,24 +47,19 @@ fn get_gitee_token() -> Result<String, GetGiteeError> {
     let token_key="gitee-session-n=".to_string();
     match result {
         Ok(val) => return Ok(token_key + &val),
-        Err(_) => return Err(GetGiteeError::InvalidToken),
+        Err(_) => return Err(GetGiteeError{code : ErrorCode::InvalidToken, msg: "cant find GITEE_SESSION in env".to_string()}),
     }
 }
 
-async fn clone(remote: &str) {
-    let gitee_repo_url = get_url_from_gitee(remote).await;
-    let gitee_repo_url = match gitee_repo_url {
-        Ok(uri)=> uri,
-        Err(error) => panic!("get gitee url error: {:?}", error)
-    };
-
-    print!("found mirror repo: {}\n", &gitee_repo_url);
+async fn clone(remote: &str) -> Result<(), GetGiteeError> {
+    let gitee_repo_url = get_url_from_gitee(remote).await?;
+    print!("Found mirror repo: {}\n", &gitee_repo_url);
     let git_status = Command::new("git").arg("clone").arg(gitee_repo_url).status();
     if git_status.is_err() {
-        print!("run git error: {}", git_status.err().unwrap())
+        print!("run git error: {}", git_status.err().unwrap());
     }
+    Ok(())
 }
-
 
 
 #[derive(Debug)]
@@ -109,7 +106,7 @@ async fn get_url_from_gitee(remote: &str) -> Result<String, GetGiteeError> {
         Err(error) => return Err(GetGiteeError{code: ErrorCode::RequestError, msg: error.message().to_string()}),
     };
 
-    if resp.status() != 401 {
+    if resp.status() == 401 {
         let msg = std::format!("Access Denied! Gitee Response: {:?}", resp);
         return Err(GetGiteeError{code: ErrorCode::InvalidLogin, msg: msg})
     }
@@ -123,7 +120,7 @@ async fn get_url_from_gitee(remote: &str) -> Result<String, GetGiteeError> {
     let body = hyper::body::to_bytes(resp).await;
     let body = match body {
         Ok(buf) => buf,
-        Err(error) => return Err(GetGiteeError{code: ErrorCode::AccessGiteeUnknowError, msg: msg}),
+        Err(_) => return Err(GetGiteeError{code: ErrorCode::AccessGiteeUnknowError, msg: msg}),
     };
 
     let dup_response : DupResponse = serde_json::from_slice(&body).unwrap();
