@@ -66,8 +66,16 @@ async fn clone(remote: &str) {
 
 
 #[derive(Debug)]
-enum GetGiteeError {
+struct GetGiteeError {
+    code: ErrorCode,
+    msg: String
+}
+
+#[derive(Debug)]
+enum ErrorCode {
     InvalidLogin,
+    RequestError,
+    AccessGiteeUnknowError,
     InvalidToken,
     CanNotFoundRepo,
     ParseResponseError,
@@ -98,29 +106,33 @@ async fn get_url_from_gitee(remote: &str) -> Result<String, GetGiteeError> {
     let resp = client.request(req).await;
     let resp = match resp {
         Ok(resp) => resp,
-        Err(error) => panic!("Access Gitee Error: {}", error),
+        Err(error) => return Err(GetGiteeError{code: ErrorCode::RequestError, msg: error.message().to_string()}),
     };
 
-    if resp.status() == 401 {
-        return Err(GetGiteeError::InvalidLogin)
+    if resp.status() != 401 {
+        let msg = std::format!("Access Denied! Gitee Response: {:?}", resp);
+        return Err(GetGiteeError{code: ErrorCode::InvalidLogin, msg: msg})
+    }
+
+    let msg = std::format!("Access UnknowError! Gitee Response: {:?}", resp);
+    if resp.status() != 200 {
+        return Err(GetGiteeError{code: ErrorCode::AccessGiteeUnknowError, msg: msg})
     }
 
 
     let body = hyper::body::to_bytes(resp).await;
-
     let body = match body {
         Ok(buf) => buf,
-        Err(error) => panic!("Access Gitee Error: {}", error),
+        Err(error) => return Err(GetGiteeError{code: ErrorCode::AccessGiteeUnknowError, msg: msg}),
     };
 
     let dup_response : DupResponse = serde_json::from_slice(&body).unwrap();
-
     if !dup_response.is_duplicate {
-        return Err(GetGiteeError::CanNotFoundRepo);
+        let msg = std::format!("can't found repo in gitee, origin: {}", remote);
+        return Err(GetGiteeError{code: ErrorCode::CanNotFoundRepo, msg: msg})
     } 
 
     let msg = dup_response.message.as_str();
-
     let start_pos = msg.find(r#"href=""#);
     let mut end_pos = msg[start_pos.unwrap_or(0)+6..].find(r#"""#);
     if end_pos != None {
@@ -128,8 +140,8 @@ async fn get_url_from_gitee(remote: &str) -> Result<String, GetGiteeError> {
     }
 
     if start_pos == None || end_pos == None {
-        dbg!("gitee res: {} start: {:?}, end: {:?}", dup_response.message, start_pos, end_pos);
-        return Err(GetGiteeError::ParseResponseError);
+        let msg = std::format!("can't parse gitee response, data: {}", dup_response.message);
+        return Err(GetGiteeError{code: ErrorCode::ParseResponseError, msg: msg})
     }
 
     let dup_repo_url = dup_response.message[start_pos.unwrap()+6..end_pos.unwrap()].to_string();
