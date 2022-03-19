@@ -12,7 +12,7 @@ extern crate scopeguard;
 
 #[derive(Parser)]
 #[clap(name = "rusgit")]
-#[clap(about = "Pull Github Code From Gitee", version="0.9.0", long_about = None)]
+#[clap(about = "Pull Github Code From Gitee", version="0.5.0", long_about = None)]
 struct Cli {
     #[clap(subcommand)]
     command: Commands,
