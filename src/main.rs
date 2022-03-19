@@ -1,9 +1,8 @@
 
 use std::env::{self};
 use std::str::FromStr;
-use std::io::{self, prelude::*, BufReader, Write};
+use std::io::{prelude::*, BufReader, Write};
 use std::process::Command;
-use serde_json::to_string;
 use urlencoding::encode;
 use clap::{Parser, Subcommand};
 use hyper::{Client, Uri, Request, Method, Body};
@@ -27,6 +26,7 @@ enum Commands {
         /// The remote to clone
         remote: String,
     },
+    /// Submodule Init, Update
     Submodule {
         #[clap(subcommand)]
         action: SubmoduleCmds,
