@@ -4,6 +4,9 @@ on:
    release:
     types: [created]
 
+env:
+  RUSTFLAGS: -C target-feature=-crt-static
+
 jobs:
   release:
     name: release ${{ matrix.target }} (with non-required env)
@@ -16,13 +19,15 @@ jobs:
           - target: x86_64-pc-windows-gnu
             archive: zip
           - target: x86_64-unknown-linux-musl
-            archive: tar.gz tar.xz
+            archive: tar.gz
           - target: x86_64-apple-darwin
             archive: zip
     steps:
       - uses: actions/checkout@master
       - name: Set version
-        run: sed -i 's/0.5.0/${{ env.GITHUB_REF_NAME }}/g' src/main.rs
+        run: sed -i 's/0.5.0/${{ env.GITHUB_REF_NAME }}/g' src/main.rs && sed -i 's/0.5.0/${{ env.GITHUB_REF_NAME }}/g' README.md
+      - name: print
+        run: echo ${{ env.RUSTFLAGS }}; echo ${{ env.RUSTFLAGS }}; cat README.md
       - name: Compile and release
         uses: rust-build/rust-build.action@latest
         env:
