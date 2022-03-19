@@ -546,6 +546,7 @@ dependencies = [
  "clap",
  "hyper",
  "hyper-tls",
+ "scopeguard",
  "serde",
  "serde_json",
  "tokio",

@@ -1,16 +1,19 @@
 
 use std::env::{self};
 use std::str::FromStr;
+use std::io::{self, prelude::*, BufReader, Write};
+use std::process::Command;
+use serde_json::to_string;
 use urlencoding::encode;
 use clap::{Parser, Subcommand};
 use hyper::{Client, Uri, Request, Method, Body};
 use hyper_tls::HttpsConnector;
-use std::process::Command;
 use serde::{Serialize, Deserialize};
+extern crate scopeguard;
 
 #[derive(Parser)]
 #[clap(name = "rusgit")]
-#[clap(about = "Pull Github Code From Gitee", long_about = None)]
+#[clap(about = "Pull Github Code From Gitee", version="0.9.0", long_about = None)]
 struct Cli {
     #[clap(subcommand)]
     command: Commands,
@@ -24,20 +27,38 @@ enum Commands {
         /// The remote to clone
         remote: String,
     },
+    Submodule {
+        #[clap(subcommand)]
+        action: SubmoduleCmds,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum SubmoduleCmds {
+    /// submodule init
+    Init {
+    },
+    /// submodule update
+    Update {
+    },
 }
 
 #[tokio::main]
 async  fn main() {
     let args = Cli::parse();
-    
+    let res;
     match &args.command {
         Commands::Clone { remote } => {
-            let res = clone(remote).await;
-            match res {
-                Ok(_) => (),
-                Err(err) => print!("{}", err.msg)
-            }
+            res = clone(remote).await;
+        },
+        Commands::Submodule { action} => {
+            res = submodule(action).await
         }
+    }
+ 
+    match res {
+        Ok(_) => (),
+        Err(err) => print!("{}", err.msg)
     }
 
 }
@@ -61,6 +82,85 @@ async fn clone(remote: &str) -> Result<(), GetGiteeError> {
     Ok(())
 }
 
+async fn submodule(cmd: &SubmoduleCmds)  -> Result<(), GetGiteeError> {
+    match cmd {
+        SubmoduleCmds::Init {} => {
+            submodule_init().await?;
+        },
+        SubmoduleCmds::Update {} => {
+            return submodule_update();
+        }
+    }
+    Ok(())
+}
+
+async fn get_submodule_line(l: String) -> Result<String, GetGiteeError> {
+    let start_pos = l.find("url = https");
+    if start_pos == None {
+        return Ok(l);
+    }
+
+    let start = l[0..start_pos.unwrap()+6].to_string();
+
+    let url = &l[start_pos.unwrap()+6..];
+    let new_url = get_url_from_gitee(url).await?;
+    println!("{} ==> {}", url, new_url);
+    Ok(start + &new_url)
+}
+
+async fn submodule_init() -> Result<(), GetGiteeError> {
+
+    let gitmodule = ".gitmodules";
+    let gitmodule_bak = ".gitmodules.bak";
+    let gitmodule_tmp = ".gitmodules.tmp";
+    let mut new_line = "\n";
+    if cfg!(windows) {
+        new_line = "\r\n";
+    }
+
+
+    if std::fs::metadata(gitmodule_bak).is_err() {
+        let _ = std::fs::copy(gitmodule, gitmodule_bak);
+    }
+
+    let _guard = scopeguard::guard((), |_| {
+        let _ = std::fs::remove_file(gitmodule_tmp);
+    });
+
+    let file = std::fs::File::open(gitmodule);
+    if file.is_ok() {
+        let output = std::fs::File::create(gitmodule_tmp);
+        let mut output = match output {
+            Ok(f) => f,
+            Err(err) => return Err(GetGiteeError{code: ErrorCode::WriteSubModuleError, msg: std::format!("Write .Submodule.tmp : {}", err)}),
+        };
+        let reader = BufReader::new(file.unwrap());
+
+        for line in reader.lines() {
+            let l = line.expect("read gitmodules");
+            let l = get_submodule_line(l).await?;
+            let l = l + &new_line;
+            output.write(l.as_bytes()).expect("write gitmodules.tmp");
+        }
+    }
+    
+    std::fs::rename(gitmodule_tmp, gitmodule).expect("move gitmodule.tmp to gitmodule");
+
+    let git_status = Command::new("git").arg("submodule").arg("init").status();
+    if git_status.is_err() {
+        print!("run git error: {}", git_status.err().unwrap());
+    }
+    Ok(())
+}
+
+fn submodule_update() -> Result<(), GetGiteeError> {
+    let git_status = Command::new("git").arg("submodule").arg("update").status();
+    if git_status.is_err() {
+        print!("run git error: {}", git_status.err().unwrap());
+    }
+    Ok(())
+}
+
 
 #[derive(Debug)]
 struct GetGiteeError {
@@ -76,6 +176,14 @@ enum ErrorCode {
     InvalidToken,
     CanNotFoundRepo,
     ParseResponseError,
+    WriteSubModuleError,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct DupResponse {
+    is_duplicate: bool,
+    #[serde(default)]
+    message: String
 }
 
 async fn get_url_from_gitee(remote: &str) -> Result<String, GetGiteeError> {
@@ -146,9 +254,3 @@ async fn get_url_from_gitee(remote: &str) -> Result<String, GetGiteeError> {
     Ok(dup_repo_url)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct DupResponse {
-    is_duplicate: bool,
-    #[serde(default)]
-    message: String
-}
