@@ -5,7 +5,7 @@ on:
     types: [created]
 
 env:
-  RUSTFLAGS: -C target-feature=-crt-static
+  OPENSSL_STATIC: 1
 
 jobs:
   release:
@@ -27,10 +27,11 @@ jobs:
       - name: Set version
         run: sed -i 's/0.5.0/${{ env.GITHUB_REF_NAME }}/g' src/main.rs && sed -i 's/0.5.0/${{ env.GITHUB_REF_NAME }}/g' README.md
       - name: print
-        run: echo ${{ env.RUSTFLAGS }}; echo ${{ env.RUSTFLAGS }}; cat README.md
+        run: echo ${{ env.RUSTFLAGS }}; echo ${{ env.GITHUB_REF_NAME }}; head -n 20 src/main.rs
       - name: Compile and release
         uses: rust-build/rust-build.action@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUSTTARGET: ${{ matrix.target }}
           ARCHIVE_TYPES: ${{ matrix.archive }}
+          PRE_BUILD: ".github/workflows/prebuild.sh"
