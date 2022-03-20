@@ -142,9 +142,10 @@ async fn submodule_init() -> Result<(), GetGiteeError> {
             let l = l + &new_line;
             output.write(l.as_bytes()).expect("write gitmodules.tmp");
         }
+        
+        std::fs::rename(gitmodule_tmp, gitmodule).expect("move gitmodule.tmp to gitmodule");
     }
     
-    std::fs::rename(gitmodule_tmp, gitmodule).expect("move gitmodule.tmp to gitmodule");
 
     let git_status = Command::new("git").arg("submodule").arg("init").status();
     if git_status.is_err() {
