@@ -27,7 +27,7 @@ jobs:
       - name: Set version
         run: sed -i "s/0.5.0/${GITHUB_REF_NAME}/g" src/main.rs && sed -i "s/0.5.0/${GITHUB_REF_NAME}/g" README.md
       - name: print
-        run: echo ${env.OPENSSL_STATIC}; echo ${GITHUB_REF_NAME}; head -n 20 src/main.rs
+        run: head -n 20 src/main.rs
       - name: Compile and release
         uses: rust-build/rust-build.action@latest
         env:
