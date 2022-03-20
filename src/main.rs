@@ -100,6 +100,11 @@ async fn get_submodule_line(l: String) -> Result<String, GetGiteeError> {
         return Ok(l);
     }
 
+    let git_flag = l.find("https://gitee.com");
+    if git_flag.is_some() {
+        return Ok(l)
+    }
+
     let start = l[0..start_pos.unwrap()+6].to_string();
 
     let url = &l[start_pos.unwrap()+6..];
