@@ -58,7 +58,7 @@ async  fn main() {
  
     match res {
         Ok(_) => (),
-        Err(err) => print!("{}", err.msg)
+        Err(err) => println!("{}", err.msg)
     }
 
 }
@@ -74,10 +74,10 @@ fn get_gitee_token() -> Result<String, GetGiteeError> {
 
 async fn clone(remote: &str) -> Result<(), GetGiteeError> {
     let gitee_repo_url = get_url_from_gitee(remote).await?;
-    print!("Found mirror repo: {}\n", &gitee_repo_url);
+    println!("Found mirror repo: {}", &gitee_repo_url);
     let git_status = Command::new("git").arg("clone").arg(gitee_repo_url).status();
     if git_status.is_err() {
-        print!("run git error: {}", git_status.err().unwrap());
+        println!("run git error: {}", git_status.err().unwrap());
     }
     Ok(())
 }
@@ -148,7 +148,7 @@ async fn submodule_init() -> Result<(), GetGiteeError> {
 
     let git_status = Command::new("git").arg("submodule").arg("init").status();
     if git_status.is_err() {
-        print!("run git error: {}", git_status.err().unwrap());
+        println!("run git error: {}", git_status.err().unwrap());
     }
     Ok(())
 }
@@ -156,7 +156,7 @@ async fn submodule_init() -> Result<(), GetGiteeError> {
 fn submodule_update() -> Result<(), GetGiteeError> {
     let git_status = Command::new("git").arg("submodule").arg("update").status();
     if git_status.is_err() {
-        print!("run git error: {}", git_status.err().unwrap());
+        println!("run git error: {}", git_status.err().unwrap());
     }
     Ok(())
 }
